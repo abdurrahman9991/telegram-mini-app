@@ -16,35 +16,43 @@ export default function TaskSection() {
   const [isWatching, setIsWatching] = useState(false)
   const [adCount, setAdCount] = useState(0)
 
+  const handleAdComplete = async () => {
+    if (!user) return
+
+    try {
+      console.log("[v0] Ad completed, awarding points to user")
+      hapticFeedback("success")
+
+      // Award points for watching ad
+      await apiClient.addReward(user.id, "ad_view", config.rewards.adView, "Watched advertisement", {
+        ad_type: "interstitial",
+      })
+
+      setAdCount((prev) => prev + 1)
+      setShowAd(false)
+      setIsWatching(false)
+    } catch (error) {
+      console.error("[v0] Failed to award points:", error)
+      hapticFeedback("error")
+      setShowAd(false)
+      setIsWatching(false)
+    }
+  }
+
+  const handleAdError = (error: Error) => {
+    console.error("[v0] Ad error:", error)
+    hapticFeedback("error")
+    setShowAd(false)
+    setIsWatching(false)
+  }
+
   const handleWatchAd = async () => {
     if (!user || isWatching) return
 
+    console.log("[v0] User clicked Watch Ad button")
     hapticFeedback("medium")
     setShowAd(true)
     setIsWatching(true)
-
-    try {
-      await apiClient.reportAdView(user.id, "interstitial")
-
-      // Simulate ad viewing time (in production, Monetag will handle this)
-      setTimeout(async () => {
-        hapticFeedback("success")
-
-        // Award points for watching ad
-        await apiClient.addReward(user.id, "ad_view", config.rewards.adView, "Watched advertisement", {
-          ad_type: "interstitial",
-        })
-
-        setAdCount((prev) => prev + 1)
-        setShowAd(false)
-        setIsWatching(false)
-      }, 3000)
-    } catch (error) {
-      console.error("[v0] Failed to watch ad:", error)
-      setShowAd(false)
-      setIsWatching(false)
-      hapticFeedback("error")
-    }
   }
 
   const containerVariants = {
@@ -162,10 +170,7 @@ export default function TaskSection() {
             className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center"
           >
             <div className="glass rounded-2xl p-8 max-w-sm mx-4 text-center space-y-4">
-              <MonetagAd type="interstitial" onAdView={() => console.log("[v0] Ad viewed")} />
-              <div className="w-16 h-16 mx-auto bg-primary/20 rounded-full flex items-center justify-center animate-pulse">
-                <Play className="w-8 h-8 text-primary" />
-              </div>
+              <MonetagAd onAdView={handleAdComplete} onAdError={handleAdError} />
               <div>
                 <h3 className="text-xl font-bold mb-2">Watching Ad...</h3>
                 <p className="text-sm text-muted-foreground">You'll earn {config.rewards.adView} points</p>
